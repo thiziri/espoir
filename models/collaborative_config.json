@@ -1,0 +1,29 @@
+{
+  "decription":"",
+  "main_configuration": {
+    "query_maxlen": 10,
+    "doc_maxlen": 1000,
+    "vocab_size": 3004,
+    "embed_size": 50,
+    "embed": "/home/thiziri/Documents/DOCTORAT/SOFT/MatchZoo/data/toy_example/ranking/embed_glove_d50_norm",
+    "train_embed": false,
+    "q_activation": "softmax",
+    "d_activation": "softmax",
+    "hidden_activation": "softmax",
+    "output_activation": "tanh",
+    "labelers_activation": "softmax",
+    "optimizer":"adam",
+    "loss_function":"binary_crossentropy",
+    "metrics":[
+      "acc"
+    ],
+    "num_layers": 3,
+    "layers_size": [
+      10,
+      8,
+      5
+    ],
+    "labelers_num":2,
+    "regularisation":"BatchNormalization, dropout ..."
+  }
+}
