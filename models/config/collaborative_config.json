@@ -3,13 +3,16 @@
   },
   "main_configuration": {
     "data_sets": {
+      "index":"/home/thiziri/Documents/DOCTORAT/COLLECTION/Indri_index/AP88",
       "query_maxlen": 10,
       "doc_maxlen": 1000,
       "vocab_size": 139489,
       "embed_size": 100,
       "embed": "/home/thiziri/Desktop/embed_norm",
       "labels": "/home/thiziri/Desktop/labelers",
-      "labelers_num": 2
+      "labelers_num": 2,
+      "train_queries":"/home/thiziri/Desktop/test_queries.txt",
+      "test_queries":""
     },
     "model": {
       "parameters": {

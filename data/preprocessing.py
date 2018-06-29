@@ -5,7 +5,7 @@ import json
 import logging
 from tqdm import tqdm
 from os.path import join
-from utils import run2relations, get_qrels, remove_extension
+from utils import run2relations, get_qrels, remove_extension, write_queries_to_file
 
 if __name__ == '__main__':
     config_file = sys.argv[1]
@@ -24,5 +24,13 @@ if __name__ == '__main__':
         with open(join(config["output_folder"], remove_extension(run))+".label", 'w') as out:
             for r in tqdm(relations):
                 out.write("{q}\t{d}\t{rel}\n".format(q=r[0][0], d=r[0][1], rel=r[1]))
+
+    print("Parse queries ...")
+    #write_queries_to_file(config["train_queries"], join(config["out_queries"], "train_queries.txt"),
+    #                      config["train_query_format"])
+    write_queries_to_file(config["test_queries"], join(config["out_queries"], "test_queries.txt"),
+                          config["test_query_format"])
+    print("Queries ok.")
+    print('Done.')
 
 

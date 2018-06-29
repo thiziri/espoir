@@ -4,7 +4,7 @@
     "relevance_judgements" : "Official relevance judgements file",
     "ranks" : "tuple of relevance intervals to take into account",
     "scales" : "Number of relevance scales",
-    "output_folder" : "The output folder where generated files will be stored",
+    "output_folder" : "The output folder where generated label files will be stored",
     "labels" : "The main type of the relevace labels, possible values are: bin, official and multi_scale",
     "max_rank" : "The maximum top results number that would be taken"
   },
@@ -17,8 +17,13 @@
       [31, 50]
     ],
     "scales" : 3,
-    "output_folder" : "/home/thiziri/Desktop",
+    "output_folder" : "/home/thiziri/Desktop/labelers",
+    "out_queries": "/home/thiziri/Desktop",
     "labels" : "multi_scale",
-    "max_rank" : 100
+    "max_rank" : 100,
+    "train_queries":"/home/thiziri/Documents/DOCTORAT/COLLECTION/trec_million_queries/MQ_queries",
+    "train_query_format":"mq",
+    "test_queries":"/home/thiziri/Documents/DOCTORAT/COLLECTION/TOPICS/AP88",
+    "test_query_format":"trec"
   }
 }

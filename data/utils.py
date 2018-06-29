@@ -17,6 +17,7 @@ import pickle
 import pyndri
 import codecs
 import math
+from collections import defaultdict, OrderedDict
 from tqdm import tqdm
 from os import listdir
 from os.path import join
@@ -144,7 +145,7 @@ def extract_topics(path_top):
             else:
                 print("Fin.\n ")
         f.close()
-    return collections.OrderedDict(sorted(topics.items()))
+    return OrderedDict(sorted(topics.items()))
 
 
 """ 
@@ -163,10 +164,10 @@ def extract_trec_million_queries(path_top):
         for line in tqdm(input.readlines()):
             l = line.decode("iso-8859-15")
             query = l.strip().split(":")
-            q = "mq" + str(int(query[0]))
+            q = str(int(query[0]))
             q_text = query[-1]  # last token string
             topics[q] = q_text
-    return collections.OrderedDict(sorted(topics.items()))
+    return OrderedDict(sorted(topics.items()))
 
 
 """
@@ -249,6 +250,30 @@ def run2relations(run_file, labels, scales, ranks, qrels=[], k=1000):
                 else:
                     continue
     return relations
+
+
+"""
+parse files of a given query directory
+"""
+def write_queries_to_file(queries_dir, out,  _format):
+    queries = {}
+    if _format not in {'trec', 'mq'}:
+        raise ("Unknown query file format {}".format(_format))
+    if _format == "trec":
+        queries = extract_topics(queries_dir)
+    if _format == "mq":
+        queries = extract_trec_million_queries(queries_dir)
+    queries_text = {}
+    q_times = defaultdict(int)
+    print("Preprocess queries ...")
+    for q in tqdm(queries):
+        q_text = clean(queries[q], "krovetz", {})
+        q_times[q_text] += 1
+        queries_text[q] = q_text if q_times[q_text] == 1 else ' '.join([q_text, str(q_times[q_text])])
+    print("Saving to file ...")
+    with open(out, 'w') as out_f:
+        for q in tqdm(queries_text):
+            out_f.write("{q_id}\t{q_txt}\n".format(q_id=q, q_txt=queries_text[q]))
 
 
 """
