@@ -1,0 +1,11 @@
+{
+  "description":{
+  },
+  "main_configuration":{
+    "index": "/home/thiziri/Documents/DOCTORAT/COLLECTION/Indri_index/AP88",
+    "pretrained_embedding": "/home/thiziri/Documents/DOCTORAT/SOFT/MatchZoo/data/WikiQA/glove.6B.100d.txt",
+    "output_embedding": "/home/thiziri/Desktop/embed",
+    "normalize": true,
+    "normalized_embedding": "/home/thiziri/Desktop/embed_norm"
+  }
+}

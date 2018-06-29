@@ -1,0 +1,41 @@
+{
+  "decription": {
+  },
+  "main_configuration": {
+    "data_sets": {
+      "query_maxlen": 10,
+      "doc_maxlen": 1000,
+      "vocab_size": 139489,
+      "embed_size": 100,
+      "embed": "/home/thiziri/Desktop/embed_norm",
+      "labels": "/home/thiziri/Desktop/labelers",
+      "labelers_num": 2
+    },
+    "model": {
+      "parameters": {
+        "q_activation": "softmax",
+        "d_activation": "softmax",
+        "hidden_activation": "softmax",
+        "output_activation": "softplus",
+        "optimizer": "adam",
+        "num_layers": 3,
+        "layers_size": [
+          10,
+          8,
+          5
+        ],
+        "regularisation": "BatchNormalization, dropout ..."
+      },
+      "train": {
+        "train_embed": false,
+        "loss_function": "binary_crossentropy",
+        "metrics": [
+          "acc"
+        ],
+        "weights": "",
+        "train_details": ""
+      },
+      "test":{}
+    }
+  }
+}

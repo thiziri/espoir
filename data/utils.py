@@ -10,6 +10,13 @@ import re
 import nltk
 import gzip
 import ntpath
+import six
+import array
+import numpy as np
+import pickle
+import pyndri
+import codecs
+import math
 from tqdm import tqdm
 from os import listdir
 from os.path import join
@@ -269,3 +276,132 @@ def chunkIt(seq, num=5):
         out.append(seq[int(last):int(last + avg)])
         last += avg
     return out
+
+
+"""
+Pros:
+Save the oov words in oov.p for further analysis.
+Refs:
+class Vectors, https://github.com/pytorch/text/blob/master/torchtext/vocab.py
+Args:
+vocab: dict,
+w2v_file: file, path to file of pre-trained word2vec/glove/fasttext
+Returns:
+vectors
+"""
+def load_word_embedding(vocab, w2v_file):
+    pre_trained = {}
+    n_words = len(vocab) + 1  # for unknown word label
+    embeddings = None
+    vectors, dim = array.array(str('d')), None
+
+    # Try to read the whole file with utf-8 encoding.
+    binary_lines = False
+    try:
+        with open(w2v_file, encoding="utf8") as f:
+            lines = [line for line in f]
+    except:
+        print("Could not read {} as UTF8 file, "
+              "reading file as bytes and skipping "
+              "words with malformed UTF8.".format(w2v_file))
+        with open(w2v_file, 'rb') as f:
+            lines = [line for line in f]
+        binary_lines = True
+
+    print("Loading vectors from {}".format(w2v_file))
+    unk = []
+
+    for line in tqdm(lines):
+        # Explicitly splitting on " " is important, so we don't
+        # get rid of Unicode non-breaking spaces in the vectors.
+        entries = line.rstrip().split(b" " if binary_lines else " ")
+
+        word, entries = entries[0], entries[1:]
+        if dim is None and len(entries) > 1:
+            dim = len(entries)
+            # init the embeddings with zeros
+            embeddings = np.zeros((n_words, dim), dtype='float32')
+
+        elif len(entries) == 1:
+            print("Skipping token {} with 1-dimensional "
+                  "vector {}; likely a header".format(word, entries))
+            continue
+        elif dim != len(entries):
+            raise RuntimeError(
+                "Vector for token {} has {} dimensions, but previously "
+                "read vectors have {} dimensions. All vectors must have "
+                "the same number of dimensions.".format(word, len(entries), dim))
+
+        if binary_lines:
+            try:
+                if isinstance(word, six.binary_type):
+                    word = word.decode('utf-8')
+            except:
+                print("Skipping non-UTF8 token {}".format(repr(word)))
+                continue
+
+        if word in vocab and word not in pre_trained and word != "<unk>":
+            w_id = vocab[word]
+            try:
+                embeddings[w_id] = [float(x) for x in entries]
+            except Exception as error:
+                print('Error saving this word : {}\n'.format(word) + repr(error))
+                print(entries)
+
+            pre_trained[word] = 1
+        if word == "<unk>":
+            unk = [float(x) for x in entries]
+
+    # init tht OOV word embeddings
+    if len(unk) == 0:
+        unk = np.zeros([dim], dtype='float32')
+    for word in vocab:
+        if word not in pre_trained:
+            """
+            alpha = 0.5 * (2.0 * np.random.random() - 1.0)
+            curr_embed = (2.0 * np.random.random_sample([dim]) - 1.0) * alpha
+            """
+            curr_embed = unk
+            embeddings[vocab[word]] = curr_embed
+    embeddings[0] = unk
+
+    pre_trained_len = len(pre_trained)
+    print('Pre-trained: {}/{} {:.2f}'.format(pre_trained_len, n_words, pre_trained_len * 100.0 / n_words))
+
+    oov_word_list = [w for w in vocab if w not in pre_trained]
+    print('oov word list example (30): ', oov_word_list[:30])
+    pickle.dump(oov_word_list, open('oov.p', 'wb'), protocol=2)
+
+    embeddings = np.array(embeddings, dtype=np.float32)
+    return embeddings
+
+
+""" indri index -> {word: index} """
+def load_word_dict(data_index):
+    print("Reading index ...")
+    index = pyndri.Index(data_index)
+    token2id, _, _ = index.get_dictionary()
+    return token2id
+
+
+"""
+Normalize the input embeddings
+"""
+def normalize(infile, outfile):
+    fout = codecs.open(outfile, 'w', encoding='utf8')
+    with codecs.open(infile, 'r', encoding='utf8') as f:
+        for line in tqdm(f):
+            r = line.split()
+            w = r[0]
+            try:
+                vec = [float(k) for k in r[1:]]
+            except:
+                print(line)
+            sum = 0.001
+            for k in vec:
+                sum += k * k
+            sum = math.sqrt(sum)
+            for i, k in enumerate(vec):
+                vec[i] = (vec[i] + 0.001)/sum
+            print(w, ' '.join(['%f' % k for k in vec]), file=fout)
+    fout.close()
