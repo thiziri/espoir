@@ -1,5 +1,10 @@
 {
   "decription": {
+    "embed": "normalized word vectors",
+    "if_masking": "given labels will be represented differently",
+    "mask": "could be: bin, scalable or beans",
+    "labels_values": "list of all possible label values",
+    "beans_num": "number of beans if mask = beans"
   },
   "main_configuration": {
     "data_sets": {
@@ -12,7 +17,11 @@
       "labels": "/home/thiziri/Desktop/labelers",
       "labelers_num": 2,
       "train_queries":"/home/thiziri/Desktop/test_queries.txt",
-      "test_queries":""
+      "test_queries":"",
+      "if_masking":true,
+      "mask": "bin",
+      "labels_values": [0,1,2,3],
+      "beans_num": 0
     },
     "model": {
       "parameters": {
@@ -35,6 +44,10 @@
         "metrics": [
           "acc"
         ],
+        "batch_size": 5,
+        "epochs": 1,
+        "verbose":1,
+        "shuffle": false,
         "weights": "",
         "train_details": ""
       },

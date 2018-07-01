@@ -7,6 +7,7 @@ from keras.layers.merge import concatenate
 from keras.models import Model
 from keras.utils import plot_model
 from utils import read_lablers_to_relations, convert_embed_2_numpy, read_embedding, get_queries
+from utils import get_input_label_size, get_mask
 from keras import backend as K
 from keras.layers import Lambda
 from os.path import join
@@ -43,7 +44,12 @@ if __name__ == '__main__':
     d_vector = sum_dim1(d_embed)  # (1 x embed_size)
     print("Added vectors\nq_vector: {qv}\nd_vector: {dv}".format(qv=q_vector, dv=d_vector))
 
-    q_d_labels = Input(name="labels_vector", shape=(config_data['labelers_num'], ), dtype='float32')
+    label_len = 0
+    if config_data["if_masking"]:
+        label_len = get_input_label_size(config_data)
+    else:
+        label_len = config_data['labelers_num']
+    q_d_labels = Input(name="labels_vector", shape=(label_len, ), dtype='float32')
 
     input_vector = concatenate([q_vector, d_vector, q_d_labels])
     print("Concatenated vector: {iv}".format(iv=input_vector))
@@ -60,9 +66,7 @@ if __name__ == '__main__':
     plot_model(model, to_file=join(config_model_train["train_details"], 'collaborative.png'))
     # save model and resume
 
-    print("Reading training data ...")
-    x_train = []
-    print("Reading train instances ...")
+    print("Reading training data:")
     print("[First]:\nRead label files to relations...")
     relations, relation_labeler = read_lablers_to_relations(config_data["labels"])
 
@@ -90,33 +94,56 @@ if __name__ == '__main__':
         # get q_word_ids from index
         q_words = [token2id[qi] if qi in token2id else 0 for qi in train_queries[relation[0]].strip().split()]
         # ############## pad/truncate q_words to a query_maxlen
-        d_words = list(index.document(externalDocId[relation[1]])[1])  # get d_word_ids from index
+        if len(q_words) < config_data['query_maxlen']:
+            q_words = list(np.pad(q_words, (config_data['query_maxlen']-len(q_words), 0), "constant", constant_values=0))
+        elif len(q_words) > config_data['query_maxlen']:
+            q_words = q_words[:config_data['query_maxlen']-1]
+
+        d_words = [w for w in index.document(externalDocId[relation[1]])[1]]  # get d_word_ids from index
         # ############## pad/truncate d_words to a doc_maxlen
-        # https://docs.scipy.org/doc/numpy/reference/generated/numpy.pad.html
+        if len(d_words) < config_data['doc_maxlen']:
+            d_words = list(np.pad(d_words, (config_data['doc_maxlen']-len(d_words), 0), "constant", constant_values=0))
+        elif len(d_words) > config_data['doc_maxlen']:
+            d_words = d_words[:config_data['doc_maxlen']-1]
+        """
         rel_labels = []
         for labeler in relation_labeler:
             try:
                 rel_labels.append(int(relation_labeler[labeler][relation]))  # read the label given by labeler
             except:
                 rel_labels.append(-1)  # set to -1 if the labeler doesn't gave any label
+        """
+        rel_labels = [int(relation_labeler[labeler][relation]) if relation in relation_labeler[labeler] else -1
+                      for labeler in relation_labeler]
+
         v_q_words.append(q_words)
         v_d_words.append(d_words)
-        v_rel_labels.append([int(relation_labeler[labeler][relation]) if relation in relation_labeler[labeler] else -1
-                             for labeler in relation_labeler])
+        v_rel_labels.append(rel_labels)
 
+        """
         x_train_i = [np.array(q_words), np.array(d_words), np.array(rel_labels)]
         x_train.append(np.array(x_train_i))
-    # print(x_train[0])
+        """
+
+    v_rel_labels = get_mask(v_rel_labels, config_data)
 
     print("y_train preparation...")
-    y_train = [np.average(x_train_i[2]) for x_train_i in x_train]  # output [array]
-    print(y_train[0])
+    # y_train = [np.average(x_train_i[2]) for x_train_i in x_train]  # output [array]
+    y_train = [np.average(l_i) for l_i in v_rel_labels]
+    # print(y_train[0])
 
-    # print(v_q_words)
+    print(v_q_words[0])
+    print(v_d_words[0])
 
     print("Model training...")
-    model.fit(x=[np.array(v_q_words), np.array(v_d_words), np.array(v_rel_labels)], y=np.array(y_train),
-              batch_size=5, epochs=1, verbose=1, shuffle=True)
+    x_train = [np.array(v_q_words), np.array(v_d_words), np.array(v_rel_labels)]
+    print(np.array(v_q_words).shape)
+    print(np.array(v_d_words).shape)
+    model.fit(x=x_train, y=np.array(y_train),
+              batch_size=config_model_train["batch_size"],
+              epochs=config_model_train["epochs"],
+              verbose=config_model_train["verbose"],
+              shuffle=config_model_train["shuffle"])
 
 
 

@@ -64,3 +64,46 @@ return: dict
 def get_queries(query_file):
     with open(query_file, "r") as f:
         return {l.strip().split("\t")[0]: l.strip().split("\t")[1] for l in f}
+
+
+"""
+Compute size of input labels vector, according to the input data configuration
+return: int
+"""
+def get_input_label_size(config_data):
+    if config_data["if_masking"]:
+        if config_data["mask"] == "bin":
+            return config_data["labelers_num"]*len(config_data["labels_values"])
+        return config_data["beans_num"]
+    return config_data["labelers_num"]
+
+
+"""
+Compute the mask vector of input labels vector according to the data configuration
+return: list(int)"""
+def get_mask(rel_labels, config_data):
+    if not config_data["if_masking"]:
+        return rel_labels
+    if config_data["mask"] == "bin":
+        mask_labels = []
+        labels = config_data["labels_values"]
+        for l in rel_labels:
+            l_mask = []
+            for l_i in l:
+                l_i_mask = []
+                for v in labels:
+                    l_i_mask.append(1 if l_i == v else 0)
+                l_mask = l_mask + l_i_mask
+            mask_labels.append(l_mask)
+        return mask_labels
+    if config_data["mask"] == "scalable":
+        mask_labels = []
+        labels = config_data["labels_values"]
+        for l in rel_labels:
+            l_mask = []
+            for v in labels:
+                l_mask.append(l.count(v))
+            mask_labels.append(l_mask)
+        return mask_labels
+
+
