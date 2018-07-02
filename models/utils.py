@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import sys
+import matplotlib.pyplot as plt
 from os.path import join
 from tqdm import tqdm
 
@@ -74,7 +75,8 @@ def get_input_label_size(config_data):
     if config_data["if_masking"]:
         if config_data["mask"] == "bin":
             return config_data["labelers_num"]*len(config_data["labels_values"])
-        return config_data["beans_num"]
+        if config_data["mask"] == "scalable":
+            return len(config_data["labels_values"])
     return config_data["labelers_num"]
 
 
@@ -106,4 +108,81 @@ def get_mask(rel_labels, config_data):
             mask_labels.append(l_mask)
         return mask_labels
 
+
+"""
+Plotting the training history of a model
+"""
+def plot_history(history, path):
+    loss_list = [s for s in history.history.keys() if 'loss' in s and 'val' not in s]
+    # val_loss_list = [s for s in history.history.keys() if 'loss' in s and 'val' in s]
+    acc_list = [s for s in history.history.keys() if 'acc' in s and 'val' not in s]
+    # val_acc_list = [s for s in history.history.keys() if 'acc' in s and 'val' in s]
+
+    if len(loss_list) == 0:
+        print('Loss is missing in history')
+        return
+
+        # As loss always exists
+
+    epochs = range(1, len(history.history[loss_list[0]]) + 1)
+
+    # Loss
+    plt.figure(1)
+    for l in loss_list:
+        plt.plot(epochs, history.history[l], 'b',
+                 label='Training loss (' + str(str(format(history.history[l][-1], '.5f')) + ')'))
+    """
+    for l in val_loss_list:
+        plt.plot(epochs, history.history[l], 'g',
+                 label='Validation loss (' + str(str(format(history.history[l][-1], '.5f')) + ')'))
+    """
+
+    plt.title('Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.savefig(path + "/train_loss.png")
+
+    # Accuracy
+    plt.figure(2)
+    for l in acc_list:
+        plt.plot(epochs, history.history[l], 'b',
+                 label='Training accuracy (' + str(format(history.history[l][-1], '.5f')) + ')')
+    """
+    for l in val_acc_list:
+        plt.plot(epochs, history.history[l], 'g',
+                 label='Validation accuracy (' + str(format(history.history[l][-1], '.5f')) + ')')
+    """
+
+    plt.title('Accuracy')
+    plt.xlabel('Epochs')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    # plt.show()
+    plt.savefig(path+"/train_acc.png")
+
+
+"""
+Create relations from a run file. For re-ranking purpose.
+Return: list of relations [(q, doc)]
+"""
+def run_test_data(run_file, k=1000):
+    relations = []
+    with open(run_file, "r") as rank:
+        i = 0
+        queries_rank = []
+        for line in tqdm(rank):
+            if line is not None:
+                q = str(int(line.strip().split()[0]))
+                if q in queries_rank:
+                    i += 1
+                else:
+                    queries_rank.append(q)
+                    i = 1
+                doc = line.strip().split()[2]
+                if i in range(k + 1):
+                    relations.append((q, doc))
+                else:
+                    continue
+    return relations
 

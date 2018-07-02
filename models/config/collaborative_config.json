@@ -4,7 +4,8 @@
     "if_masking": "given labels will be represented differently",
     "mask": "could be: bin, scalable or beans",
     "labels_values": "list of all possible label values",
-    "beans_num": "number of beans if mask = beans"
+    "beans_num": "number of beans if mask = beans",
+    "top_rank": "Number of top results that would be re-ranked"
   },
   "main_configuration": {
     "data_sets": {
@@ -17,14 +18,15 @@
       "labels": "/home/thiziri/Desktop/labelers",
       "labelers_num": 2,
       "train_queries":"/home/thiziri/Desktop/test_queries.txt",
-      "test_queries":"",
+      "test_queries":"/home/thiziri/Desktop/test_queries.txt",
       "if_masking":true,
-      "mask": "bin",
+      "mask": "scalable",
       "labels_values": [0,1,2,3],
       "beans_num": 0
     },
     "model": {
       "parameters": {
+        "model_name": "collaborative",
         "q_activation": "softmax",
         "d_activation": "softmax",
         "hidden_activation": "softmax",
@@ -32,8 +34,8 @@
         "optimizer": "adam",
         "num_layers": 3,
         "layers_size": [
+          20,
           10,
-          8,
           5
         ],
         "regularisation": "BatchNormalization, dropout ..."
@@ -42,16 +44,21 @@
         "train_embed": false,
         "loss_function": "binary_crossentropy",
         "metrics": [
-          "acc"
+          "accuracy"
         ],
-        "batch_size": 5,
-        "epochs": 1,
+        "batch_size": 20,
+        "epochs": 10,
         "verbose":1,
         "shuffle": false,
-        "weights": "",
-        "train_details": ""
+        "weights": "/home/thiziri/Documents/DOCTORAT/TESTS/TRAINED/collaborative_pseudo_labelling/weights/weights",
+        "train_details": "/home/thiziri/Documents/DOCTORAT/TESTS/TRAINED/collaborative_pseudo_labelling/model"
       },
-      "test":{}
+      "test":{
+        "if_reranking": true,
+        "rank": "/home/thiziri/Documents/DOCTORAT/TESTS/RUNS/INDRI_runs/tfidf_k1_1.2_b_0.75_AP88",
+        "save_rank": "/home/thiziri/Documents/DOCTORAT/TESTS/RUNS/collaborative_pseudo_labbelling/predict_no_input_feature_labels.txt",
+        "top_rank": 1000
+      }
     }
   }
 }
