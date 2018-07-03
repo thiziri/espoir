@@ -26,8 +26,8 @@ if __name__ == '__main__':
                 out.write("{q}\t{d}\t{rel}\n".format(q=r[0][0], d=r[0][1], rel=r[1]))
 
     print("Parse queries ...")
-    #write_queries_to_file(config["train_queries"], join(config["out_queries"], "train_queries.txt"),
-    #                      config["train_query_format"])
+    write_queries_to_file(config["train_queries"], join(config["out_queries"], "train_queries.txt"),
+                          config["train_query_format"])
     write_queries_to_file(config["test_queries"], join(config["out_queries"], "test_queries.txt"),
                           config["test_query_format"])
     print("Queries ok.")

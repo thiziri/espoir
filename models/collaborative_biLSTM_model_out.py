@@ -2,29 +2,18 @@ import sys
 import json
 import pyndri
 import numpy as np
-from keras.layers import Input, Dense, Embedding, BatchNormalization, Dropout
+from keras.layers import Input, Dense, Embedding, Dropout
 from keras.layers.merge import concatenate
 from keras.models import Model
 from keras.utils import plot_model
 from utils import read_lablers_to_relations, convert_embed_2_numpy, read_embedding, get_queries
-from utils import get_input_label_size, get_mask, plot_history
+from utils import get_input_label_size, get_mask, plot_history, get_optimizer
+from keras.layers import Dense, Input, LSTM, Dropout, Bidirectional
+from keras.layers.normalization import BatchNormalization
 from keras import backend as K
 from keras.layers import Lambda
 from os.path import join
 from tqdm import tqdm
-from keras.callbacks import Callback
-
-class WeightsSaver(Callback):
-    def __init__(self, model, N):
-        self.model = model
-        self.N = N
-        self.batch = 0
-
-    def on_batch_end(self, batch, logs={}):
-        if self.batch % self.N == 0:
-            name = 'weights%08d.h5' % self.batch
-            self.model.save_weights(name)
-        self.batch += 1
 
 
 if __name__ == '__main__':
@@ -52,32 +41,44 @@ if __name__ == '__main__':
     q_embed = embedding(query)
     d_embed = embedding(doc)
     print("Embedded inputs: \nq_embed: {qe}\nd_embed: {de}".format(qe=q_embed, de=d_embed))
-    sum_dim1 = Lambda(lambda xin: K.sum(xin, axis=1), output_shape=(config_data['embed_size'],), name="sum_vectors")
-    q_vector = sum_dim1(q_embed)  # (1 x embed_size)
-    d_vector = sum_dim1(d_embed)  # (1 x embed_size)
+    #sum_dim1 = Lambda(lambda xin: K.sum(xin, axis=1), output_shape=(config_data['embed_size'],), name="sum_vectors")
+    lstm_layer = Bidirectional(LSTM(50, dropout=0.29, recurrent_dropout=0.29))
+    q_vector = lstm_layer(q_embed)  # (1 x embed_size)
+    d_vector = lstm_layer(d_embed)  # (1 x embed_size)
     print("Added vectors\nq_vector: {qv}\nd_vector: {dv}".format(qv=q_vector, dv=d_vector))
 
-    label_len = get_input_label_size(config_data)
-    q_d_labels = Input(name="labels_vector", shape=(label_len, ), dtype='float32')
-
-    input_vector = concatenate([q_vector, d_vector, q_d_labels])
+    input_vector = concatenate([q_vector, d_vector])
     print("Concatenated vector: {iv}".format(iv=input_vector))
+    merged = BatchNormalization()(input_vector)
+    merged = Dropout(0.25)(merged)
     dense = Dense(config_model_param["layers_size"][0], activation=config_model_param['hidden_activation'],
-                  name="MLP_combine_0")(input_vector)
-    # dense = Dropout(0.5)(dense)  # BatchNormalization(axis=1, momentum=0.99, epsilon=0.001)(dense)
+                  name="MLP_combine_0")(merged)
     i = 0
     for i in range(config_model_param["num_layers"]-2):
-        dense = Dense(config_model_param["layers_size"][i], activation=config_model_param['hidden_activation'],
+        dense = BatchNormalization()(dense)
+        dense = Dropout(0.25)(dense)
+        dense = Dense(config_model_param["layers_size"][i+1], activation=config_model_param['hidden_activation'],
                       name="MLP_combine_"+str(i+1))(dense)
-        # dense = Dropout(0.5)(dense)  #BatchNormalization(axis=1, momentum=0.99, epsilon=0.001)(dense)
-    dense = Dense(1, activation=config_model_param['output_activation'], name="MLP_out"+str(i+1))(dense)
-    # dense = Dropout(0.5)(dense)  # BatchNormalization(axis=1, momentum=0.99, epsilon=0.001)(dense)
-    model = Model(inputs=[query, doc, q_d_labels], outputs=dense)
-    model.compile(optimizer=config_model_param["optimizer"], loss=config_model_train["loss_function"],
+
+    # dense = Dropout(0.5)(dense)
+    dense = BatchNormalization()(dense)
+    dense = Dropout(0.25)(dense)
+    out_size = get_input_label_size(config_data)
+    out_labels = Dense(out_size, activation=config_model_param['output_activation'], name="MLP_out")(dense)
+    model = Model(inputs=[query, doc], outputs=out_labels)
+    model2 = Model(inputs=[query, doc], outputs=input_vector)
+    optimizer = get_optimizer(config_model_param["optimizer"])(lr=config_model_param["learning_rate"])
+    print(optimizer)
+    model.compile(optimizer=optimizer, loss=config_model_train["loss_function"],
                   metrics=config_model_train["metrics"])
     print(model.summary())
-    plot_model(model, to_file=join(config_model_train["train_details"], 'collaborative.png'))
+    plot_model(model, to_file=join(config_model_train["train_details"], config_model_param['model_name']+".png"))
     # save model and resume
+    # serialize model to JSON
+    model_json = model.to_json()
+    with open(join(config_model_train["train_details"], config_model_param["model_name"] + ".json"), "w") as json_file:
+        json_file.write(model_json)
+    print("Saved model to disk.")
 
     print("Reading training data:")
     print("[First]:\nRead label files to relations...")
@@ -88,6 +89,7 @@ if __name__ == '__main__':
     print("Reading data index ...")
     index = pyndri.Index(config_data["index"])
     token2id, _, _ = index.get_dictionary()
+    print(len(token2id))
     externalDocId = {}
     for doc_id in range(index.document_base(), index.maximum_document()):  # type: int
         extD_id, _ = index.document(doc_id)
@@ -106,6 +108,7 @@ if __name__ == '__main__':
     for relation in tqdm(relations):
         # get q_word_ids from index
         q_words = [token2id[qi] if qi in token2id else 0 for qi in train_queries[relation[0]].strip().split()]
+        #print(len(q_words), len([x for x in q_words if x > 0]))
         # ############## pad/truncate q_words to a query_maxlen
         if len(q_words) < config_data['query_maxlen']:
             q_words = list(np.pad(q_words, (config_data['query_maxlen']-len(q_words), 0), "constant", constant_values=0))
@@ -127,32 +130,24 @@ if __name__ == '__main__':
         v_q_words.append(q_words)
         v_d_words.append(d_words)
         v_rel_labels.append(rel_labels)
-        # break
 
     print("y_train preparation...")
-    y_train = [np.average(l_i) for l_i in v_rel_labels]  # output [array]
-    # print(y_train[0])
-    v_rel_labels = get_mask(v_rel_labels, config_data)
+    y_train = get_mask(v_rel_labels, config_data)
 
     print("Model training...")
     print(np.array(v_q_words).shape, np.array(v_d_words).shape, np.array(v_rel_labels).shape)
-    x_train = [np.array(v_q_words), np.array(v_d_words), np.array(v_rel_labels)]
+    x_train = [np.array(v_q_words), np.array(v_d_words)]
     # print(np.array(x_train).shape)
     history = model.fit(x=x_train, y=np.array(y_train),
               batch_size=config_model_train["batch_size"],
               epochs=config_model_train["epochs"],
               verbose=config_model_train["verbose"],
-              shuffle=config_model_train["shuffle"], callbacks=[WeightsSaver(model, 5)])
+              shuffle=config_model_train["shuffle"])
 
     # save trained model
     print("Saving model and its weights ...")
     model.save_weights(config_model_train["weights"]+".h5")
-    # serialize model to JSON
-    model_json = model.to_json()
-    with open(join(config_model_train["train_details"], config_model_param["model_name"]+".json"), "w") as json_file:
-        json_file.write(model_json)
-    print("Saved model to disk.")
 
     print("Plotting history ...")
-    plot_history(history, config_model_train["train_details"])
+    plot_history(history, config_model_train["train_details"], config_model_param["model_name"])
     print("Done.")

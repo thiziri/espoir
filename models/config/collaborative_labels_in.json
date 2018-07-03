@@ -14,11 +14,11 @@
       "doc_maxlen": 1000,
       "vocab_size": 139489,
       "embed_size": 100,
-      "embed": "/home/thiziri/Desktop/embed_norm",
-      "labels": "/home/thiziri/Desktop/labelers",
+      "embed": "/home/thiziri/Documents/DOCTORAT/TESTS/TRAINED/collaborative_pseudo_labelling/data/embed_norm",
+      "labels": "/home/thiziri/Documents/DOCTORAT/TESTS/TRAINED/collaborative_pseudo_labelling/data/labelers",
       "labelers_num": 2,
-      "train_queries":"/home/thiziri/Desktop/test_queries.txt",
-      "test_queries":"/home/thiziri/Desktop/test_queries.txt",
+      "train_queries":"/home/thiziri/Documents/DOCTORAT/TESTS/TRAINED/collaborative_pseudo_labelling/data/test_queries.txt",
+      "test_queries":"/home/thiziri/Documents/DOCTORAT/TESTS/TRAINED/collaborative_pseudo_labelling/data/test_queries.txt",
       "if_masking":true,
       "mask": "scalable",
       "labels_values": [0,1,2,3],
@@ -26,9 +26,7 @@
     },
     "model": {
       "parameters": {
-        "model_name": "collaborative",
-        "q_activation": "softmax",
-        "d_activation": "softmax",
+        "model_name": "collaborative_labels_in",
         "hidden_activation": "softmax",
         "output_activation": "softplus",
         "optimizer": "adam",
@@ -38,6 +36,7 @@
           10,
           5
         ],
+        "learning_rate": 0.001,
         "regularisation": "BatchNormalization, dropout ..."
       },
       "train": {

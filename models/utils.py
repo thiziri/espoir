@@ -4,9 +4,23 @@ import sys
 import matplotlib.pyplot as plt
 from os.path import join
 from tqdm import tqdm
+from keras import optimizers
 
 sys.path.append('../data/utils')
 from utils import *
+
+def get_optimizer(optimizer):
+    all_classes = {
+        'sgd': optimizers.SGD,
+        'rmsprop': optimizers.RMSprop,
+        'adagrad': optimizers.Adagrad,
+        'adadelta': optimizers.Adadelta,
+        'adam': optimizers.Adam,
+        'adamax': optimizers.Adamax,
+        'nadam': optimizers.Nadam,
+        'tfoptimizer': optimizers.TFOptimizer
+    }
+    return all_classes[optimizer]
 
 
 """ 
@@ -112,7 +126,7 @@ def get_mask(rel_labels, config_data):
 """
 Plotting the training history of a model
 """
-def plot_history(history, path):
+def plot_history(history, path, model_name):
     loss_list = [s for s in history.history.keys() if 'loss' in s and 'val' not in s]
     # val_loss_list = [s for s in history.history.keys() if 'loss' in s and 'val' in s]
     acc_list = [s for s in history.history.keys() if 'acc' in s and 'val' not in s]
@@ -141,7 +155,7 @@ def plot_history(history, path):
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
-    plt.savefig(path + "/train_loss.png")
+    plt.savefig(join(path,  model_name+"_train_loss.png"))
 
     # Accuracy
     plt.figure(2)
@@ -159,7 +173,7 @@ def plot_history(history, path):
     plt.ylabel('Accuracy')
     plt.legend()
     # plt.show()
-    plt.savefig(path+"/train_acc.png")
+    plt.savefig(join(path, model_name+"_train_acc.png"))
 
 
 """
