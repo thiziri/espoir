@@ -28,8 +28,9 @@ if __name__ == '__main__':
     json_file.close()
     loaded_model = model_from_json(loaded_model_json)
     # load weights into new model
-    loaded_model.load_weights(config_model_train["weights"]+".h5")
-    print("Loaded model from disk")
+    model_weights = config_model_train["weights"]+'_iter_{x:04d}.h5'.format(x=config_model_test["test_period"])
+    loaded_model.load_weights(model_weights)
+    print("Loaded model from disk: ", model_weights)
 
     # evaluate loaded model on test data
     loaded_model.compile(optimizer=config_model_param["optimizer"], loss=config_model_train["loss_function"],
@@ -53,7 +54,6 @@ if __name__ == '__main__':
         for relation in tqdm(relations):
             # read and pad data:
             query = [token2id[qi] if qi in token2id else 0 for qi in test_queries[relation[0]].strip().split()]  # get query terms
-            #print(len())
             if len(query) < config_data['query_maxlen']:
                 query = list(np.pad(query, (config_data['query_maxlen'] - len(query), 0), "constant", constant_values=0))
             elif len(query) > config_data['query_maxlen']:

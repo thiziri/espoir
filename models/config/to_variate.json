@@ -1,0 +1,7 @@
+{
+  "hidden_activation": ["tanh", "sigmoid"],
+  "number_lstm_units": [[10, 100], 10],
+  "lstm_dropout": [[0.1, 0.9], 0.1],
+  "test_period":[[5, 10], 5]
+
+}

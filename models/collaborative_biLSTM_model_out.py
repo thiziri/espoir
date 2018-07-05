@@ -2,18 +2,16 @@ import sys
 import json
 import pyndri
 import numpy as np
-from keras.layers import Input, Dense, Embedding, Dropout
 from keras.layers.merge import concatenate
 from keras.models import Model
 from keras.utils import plot_model
 from utils import read_lablers_to_relations, convert_embed_2_numpy, read_embedding, get_queries
 from utils import get_input_label_size, get_mask, plot_history, get_optimizer
-from keras.layers import Dense, Input, LSTM, Dropout, Bidirectional
+from keras.layers import Dense, Input, LSTM, Dropout, Bidirectional, Embedding
 from keras.layers.normalization import BatchNormalization
-from keras import backend as K
-from keras.layers import Lambda
 from os.path import join
 from tqdm import tqdm
+from keras import callbacks
 
 
 if __name__ == '__main__':
@@ -41,40 +39,41 @@ if __name__ == '__main__':
     q_embed = embedding(query)
     d_embed = embedding(doc)
     print("Embedded inputs: \nq_embed: {qe}\nd_embed: {de}".format(qe=q_embed, de=d_embed))
-    #sum_dim1 = Lambda(lambda xin: K.sum(xin, axis=1), output_shape=(config_data['embed_size'],), name="sum_vectors")
-    lstm_layer = Bidirectional(LSTM(50, dropout=0.29, recurrent_dropout=0.29))
+    lstm_layer = Bidirectional(LSTM(config_model_param["number_lstm_units"], dropout=config_model_param["lstm_dropout"],
+                                    recurrent_dropout=config_model_param["lstm_dropout"]))
     q_vector = lstm_layer(q_embed)  # (1 x embed_size)
     d_vector = lstm_layer(d_embed)  # (1 x embed_size)
-    print("Added vectors\nq_vector: {qv}\nd_vector: {dv}".format(qv=q_vector, dv=d_vector))
+
+    print("biLstm vectors\nq_vector: {qv}\nd_vector: {dv}".format(qv=q_vector, dv=d_vector))
 
     input_vector = concatenate([q_vector, d_vector])
     print("Concatenated vector: {iv}".format(iv=input_vector))
     merged = BatchNormalization()(input_vector)
-    merged = Dropout(0.25)(merged)
+    merged = Dropout(config_model_param["dropout_rate"])(merged)
     dense = Dense(config_model_param["layers_size"][0], activation=config_model_param['hidden_activation'],
                   name="MLP_combine_0")(merged)
     i = 0
     for i in range(config_model_param["num_layers"]-2):
         dense = BatchNormalization()(dense)
-        dense = Dropout(0.25)(dense)
+        dense = Dropout(config_model_param["dropout_rate"])(dense)
         dense = Dense(config_model_param["layers_size"][i+1], activation=config_model_param['hidden_activation'],
                       name="MLP_combine_"+str(i+1))(dense)
-
-    # dense = Dropout(0.5)(dense)
     dense = BatchNormalization()(dense)
-    dense = Dropout(0.25)(dense)
-    out_size = get_input_label_size(config_data)
+    dense = Dropout(config_model_param["dropout_rate"])(dense)
+    if config_model_param["predict_labels"]:
+        out_size = get_input_label_size(config_data)
+    else:
+        out_size = 1
     out_labels = Dense(out_size, activation=config_model_param['output_activation'], name="MLP_out")(dense)
     model = Model(inputs=[query, doc], outputs=out_labels)
-    model2 = Model(inputs=[query, doc], outputs=input_vector)
+    # model2 = Model(inputs=[query, doc], outputs=input_vector)
     optimizer = get_optimizer(config_model_param["optimizer"])(lr=config_model_param["learning_rate"])
-    print(optimizer)
+    # print(optimizer)
     model.compile(optimizer=optimizer, loss=config_model_train["loss_function"],
                   metrics=config_model_train["metrics"])
+
     print(model.summary())
     plot_model(model, to_file=join(config_model_train["train_details"], config_model_param['model_name']+".png"))
-    # save model and resume
-    # serialize model to JSON
     model_json = model.to_json()
     with open(join(config_model_train["train_details"], config_model_param["model_name"] + ".json"), "w") as json_file:
         json_file.write(model_json)
@@ -132,17 +131,25 @@ if __name__ == '__main__':
         v_rel_labels.append(rel_labels)
 
     print("y_train preparation...")
-    y_train = get_mask(v_rel_labels, config_data)
+    if config_model_param["predict_labels"]:
+        y_train = get_mask(v_rel_labels, config_data)
+    else:
+        max_rel = max([max(l) for l in v_rel_labels])
+        y_train = [np.average([r/max_rel for r in l]) for l in v_rel_labels]
 
     print("Model training...")
     print(np.array(v_q_words).shape, np.array(v_d_words).shape, np.array(v_rel_labels).shape)
     x_train = [np.array(v_q_words), np.array(v_d_words)]
     # print(np.array(x_train).shape)
+
+    mc = callbacks.ModelCheckpoint(config_model_train["weights"]+'_iter_{epoch:04d}.h5', save_weights_only=True,
+                                   period=config_model_train["save_period"])
+
     history = model.fit(x=x_train, y=np.array(y_train),
               batch_size=config_model_train["batch_size"],
               epochs=config_model_train["epochs"],
               verbose=config_model_train["verbose"],
-              shuffle=config_model_train["shuffle"])
+              shuffle=config_model_train["shuffle"], callbacks=[mc])
 
     # save trained model
     print("Saving model and its weights ...")

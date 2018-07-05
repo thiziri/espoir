@@ -5,18 +5,20 @@
     "mask": "could be: bin, scalable or beans",
     "labels_values": "list of all possible label values",
     "beans_num": "number of beans if mask = beans",
-    "top_rank": "Number of top results that would be re-ranked"
+    "num_layers": "Number of the dense layers",
+    "top_rank": "Number of top results that would be re-ranked",
+    "save_period": "save weights every N epochs"
   },
   "main_configuration": {
     "data_sets": {
       "index":"/home/thiziri/Documents/DOCTORAT/COLLECTION/Indri_index/AP88",
-      "query_maxlen": 5,
-      "doc_maxlen": 500,
+      "query_maxlen": 10,
+      "doc_maxlen": 1000,
       "vocab_size": 139489,
       "embed_size": 100,
       "embed": "/home/thiziri/Documents/DOCTORAT/TESTS/TRAINED/collaborative_pseudo_labelling/data/embed_norm",
       "labels": "/home/thiziri/Documents/DOCTORAT/TESTS/TRAINED/collaborative_pseudo_labelling/data/labelers",
-      "labelers_num": 2,
+      "labelers_num": 1,
       "train_queries":"/home/thiziri/Documents/DOCTORAT/TESTS/TRAINED/collaborative_pseudo_labelling/data/test_queries.txt",
       "test_queries":"/home/thiziri/Documents/DOCTORAT/TESTS/TRAINED/collaborative_pseudo_labelling/data/test_queries.txt",
       "if_masking":false,
@@ -27,31 +29,37 @@
     "model": {
       "parameters": {
         "model_name": "collaborative_BiLSTM_labels_out",
-        "hidden_activation": "relu",
-        "output_activation": "linear",
+        "hidden_activation": "tanh",
+        "output_activation": "sigmoid",
         "optimizer": "adam",
-        "num_layers": 2,
+        "number_lstm_units": 100,
+        "lstm_dropout": 0.29,
+        "num_layers": 3,
         "layers_size": [
-          10,
+          50,
+          20,
           5
         ],
-        "learning_rate": 0.0001,
-        "regularisation": "BatchNormalization, dropout ..."
+        "learning_rate": 0.001,
+        "dropout_rate": 0.25,
+        "predict_labels":false
       },
       "train": {
         "train_embed": false,
-        "loss_function": "kullback_leibler_divergence",
+        "loss_function": "hinge",
         "metrics": [
           "accuracy"
         ],
-        "batch_size": 30,
-        "epochs": 10,
+        "batch_size": 32,
+        "epochs": 2,
         "verbose":1,
         "shuffle": true,
         "weights": "/home/thiziri/Documents/DOCTORAT/TESTS/TRAINED/collaborative_pseudo_labelling/weights/weights",
+        "save_period": 1,
         "train_details": "/home/thiziri/Documents/DOCTORAT/TESTS/TRAINED/collaborative_pseudo_labelling/model"
       },
       "test":{
+        "test_period": 2,
         "if_reranking": true,
         "rank": "/home/thiziri/Documents/DOCTORAT/TESTS/RUNS/INDRI_runs/tfidf_k1_1.2_b_0.75_AP88",
         "save_rank": "/home/thiziri/Documents/DOCTORAT/TESTS/RUNS/collaborative_pseudo_labbelling",
