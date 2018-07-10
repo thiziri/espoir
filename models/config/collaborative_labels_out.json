@@ -1,6 +1,7 @@
 {
   "decription": {
     "embed": "normalized word vectors",
+    "vocab_size": "number of unique words on the embeddings +1 (for unkowen words)",
     "if_masking": "given labels will be represented differently",
     "mask": "could be: bin, scalable or beans",
     "labels_values": "list of all possible label values",
@@ -11,16 +12,16 @@
   },
   "main_configuration": {
     "data_sets": {
-      "index":"/home/thiziri/Documents/DOCTORAT/COLLECTION/Indri_index/AP88",
-      "query_maxlen": 10,
-      "doc_maxlen": 1000,
-      "vocab_size": 139489,
-      "embed_size": 100,
-      "embed": "/home/thiziri/Documents/DOCTORAT/TESTS/TRAINED/collaborative_pseudo_labelling/data/embed_norm",
-      "labels": "/home/thiziri/Documents/DOCTORAT/TESTS/TRAINED/collaborative_pseudo_labelling/data/labelers",
+      "index":"/projets/iris/PROJETS/WEIR/collections/Indri_Index/Robust",
+      "query_maxlen": 20,
+      "doc_maxlen": 2000,
+      "vocab_size": 664604,
+      "embed_size": 300,
+      "embed": "/projets/iris/PROJETS/WEIR/data/collaborative_labelling/okapi_MQ/embed_robust_glove_norm",
+      "labels": "/projets/iris/PROJETS/WEIR/data/collaborative_labelling/okapi_MQ/labels",
       "labelers_num": 1,
-      "train_queries":"/home/thiziri/Documents/DOCTORAT/TESTS/TRAINED/collaborative_pseudo_labelling/data/test_queries.txt",
-      "test_queries":"/home/thiziri/Documents/DOCTORAT/TESTS/TRAINED/collaborative_pseudo_labelling/data/test_queries.txt",
+      "train_queries":"/projets/iris/PROJETS/WEIR/data/collaborative_labelling/okapi_MQ/train_queries.txt",
+      "test_queries":"/projets/iris/PROJETS/WEIR/data/collaborative_labelling/okapi_MQ/test_queries.txt",
       "if_masking":false,
       "mask": "",
       "labels_values": [0,1,2,3],
@@ -28,20 +29,21 @@
     },
     "model": {
       "parameters": {
-        "model_name": "collaborative_BiLSTM_labels_out",
+        "model_name": "collaborative_BiLSTM_label_out",
         "hidden_activation": "tanh",
         "output_activation": "sigmoid",
         "optimizer": "adam",
-        "number_lstm_units": 100,
-        "lstm_dropout": 0.29,
-        "num_layers": 3,
+        "number_lstm_units": -1,
+        "lstm_dropout": -0.1,
+        "num_layers": 4,
         "layers_size": [
+          100,
           50,
           20,
           5
         ],
         "learning_rate": 0.001,
-        "dropout_rate": 0.25,
+        "dropout_rate": -0.1,
         "predict_labels":false
       },
       "train": {
@@ -50,20 +52,20 @@
         "metrics": [
           "accuracy"
         ],
-        "batch_size": 32,
-        "epochs": 2,
+        "batch_size": 64,
+        "epochs": 400,
         "verbose":1,
         "shuffle": true,
-        "weights": "/home/thiziri/Documents/DOCTORAT/TESTS/TRAINED/collaborative_pseudo_labelling/weights/weights",
-        "save_period": 1,
-        "train_details": "/home/thiziri/Documents/DOCTORAT/TESTS/TRAINED/collaborative_pseudo_labelling/model"
+        "weights": "/projets/iris/PROJETS/WEIR/models/collaborativeLabelling/weights/weights_",
+        "save_period": 10,
+        "train_details": "/projets/iris/PROJETS/WEIR/models/collaborativeLabelling/model"
       },
       "test":{
-        "test_period": 2,
+        "test_period": 10,
         "if_reranking": true,
-        "rank": "/home/thiziri/Documents/DOCTORAT/TESTS/RUNS/INDRI_runs/tfidf_k1_1.2_b_0.75_AP88",
-        "save_rank": "/home/thiziri/Documents/DOCTORAT/TESTS/RUNS/collaborative_pseudo_labbelling",
-        "top_rank": 100
+        "rank": "/projets/iris/PROJETS/WEIR/RUNS/2ndYear/indri_runs/2k_okapi_k1_1.2_b_0.75_k3_7_Robust",
+        "save_rank": "/projets/iris/PROJETS/WEIR/models/collaborativeLabelling/runs",
+        "top_rank": 2000
       }
     }
   }

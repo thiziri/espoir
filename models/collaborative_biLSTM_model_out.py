@@ -7,7 +7,7 @@ from keras.models import Model
 from keras.utils import plot_model
 from utils import read_lablers_to_relations, convert_embed_2_numpy, read_embedding, get_queries
 from utils import get_input_label_size, get_mask, plot_history, get_optimizer
-from keras.layers import Dense, Input, LSTM, Dropout, Bidirectional, Embedding
+from keras.layers import Dense, Input, LSTM, Dropout, Bidirectional, Embedding, Dot
 from keras.layers.normalization import BatchNormalization
 from os.path import join
 from tqdm import tqdm
@@ -47,6 +47,8 @@ if __name__ == '__main__':
     print("biLstm vectors\nq_vector: {qv}\nd_vector: {dv}".format(qv=q_vector, dv=d_vector))
 
     input_vector = concatenate([q_vector, d_vector])
+    # merge_layer = Dot(axes=1,normalize=True)([q_vector, d_vector]) ######## similarity dotprod between the 2 vectors
+    # c = concatenate([q_vector, merge_layer, d_vector], axis=1)
     print("Concatenated vector: {iv}".format(iv=input_vector))
     merged = BatchNormalization()(input_vector)
     merged = Dropout(config_model_param["dropout_rate"])(merged)

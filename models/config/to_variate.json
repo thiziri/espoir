@@ -1,7 +1,10 @@
 {
-  "hidden_activation": ["tanh", "sigmoid"],
+  "hidden_activation": ["tanh", "sigmoid", "relu"],
   "number_lstm_units": [[10, 100], 10],
-  "lstm_dropout": [[0.1, 0.9], 0.1],
-  "test_period":[[5, 10], 5]
+  "lstm_dropout": [[0.0, 0.9], 0.1],
+  "dropout_rate": [[0.0, 0.9], 0.1],
+  "optimizer": ["adam", "sgd"],
+  "loss_function": ["hinge", "kullback_leibler_divergence"],
+  "test_period":[[10, 400], 10]
 
 }
