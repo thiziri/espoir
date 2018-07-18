@@ -1,4 +1,5 @@
 import numpy as np
+import pickle
 from os.path import join
 
 class ContentReader():
@@ -7,8 +8,8 @@ class ContentReader():
     """
     def __init__(self, relations_list, token2id, external_doc_ids, queries_list, q_max_len, d_max_len,
                  train_queries,
-                 input_files=None,
-                 index=None
+                 input_files,
+                 index
                  ):
         self.index = index
         self.relations_list = relations_list
@@ -52,3 +53,28 @@ class ContentReader():
         else:
             doc_words = [int(e) for e in open(join(join(self.input_files, "documents"), d_id)).read().strip().split()]
         return doc_words
+
+
+class ContentPickleReader(ContentReader):
+    """
+    Reads content of a given doc/query content
+    """
+    def __init__(self, relations_list, token2id, external_doc_ids, queries_list, q_max_len, d_max_len,
+                 train_queries,
+                 input_files=None,
+                 index=None):
+        ContentReader.__init__(self, relations_list, token2id, external_doc_ids, queries_list, q_max_len, d_max_len,
+                 train_queries,
+                 input_files,
+                 index)
+
+    def pickle_data(self):
+        """
+        Reads the list of data inputs and corresponding dictionary
+        :param query: self
+        :return: tuple
+        """
+        data_list = pickle.load(open(join(self.input_files, "data_list.pickle"), 'rb'))
+        index_dict = pickle.load(open(join(self.input_files, "index_dict.pickle"), 'rb'))
+        return data_list, index_dict
+

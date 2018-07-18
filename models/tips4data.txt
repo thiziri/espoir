@@ -1,0 +1,87 @@
+Bonjour Thiziri,
+
+J’ai regardé rapidement ton code proposé sur SO.
+
+Plusieurs possibilités s’offrent à toi pour améliorer les performances, dont l’applicabilité dépend de ton volume de données et des capacités de ta machine.
+
+1. SGF adapté :
+Comme tu sembles lire une séquence de fichiers, une première idée serait de laisser se traitement adaptée à la lecture en flux d’un grand nombre de fichiers.
+des SGF comme HDFS pourraient améliorer tes performances. Toutefois, cela n’a pas d’intérêt si tu ne travailles pas sur un cluster de machines / disques durs
+
+2. Pré-calculation :
+L’idée de base et de ne pas générer des vecteur de mots (qui nécessite la lecture de fichiers sur disque, puisque le dataset ne peut pas tenir en entier dans la RAM)
+mais de générer des vecteurs d’indices de mots (1 vecteur par document).
+Cette technique est très intéressant si l’ensemble des vecteurs de mots peut tenir en entiers dans la ram. Dans le cas contraire, il te faudra créer des fichiers de vecteurs (généralement 1 par documents),
+mais le gain sera quand même interessant
+
+Voici l’idée général d'un pre-processing qui stocke tous les vecteurs de mots dans une liste de vecteurs:
+dictionnaire_mots = defaultdict() # va contenir pour chaque mot un entier correspondant à son indice unique
+dictionnaire_mots.default_factory = dictionnaire_mot.__len__ # permet de générer l’indice unique automatiquement
+
+dictionnaire_fichiers = dict() # va contenir pour chaque ID un indice du vecteur dans la liste de vecteurs:
+liste_vecteurs = []
+
+pour chaque fichier F d’id ID:
+	vecteur = [dictionnaire_mots[M] pour chaque mot M du fichier F]
+	liste_vecteurs.append(vecteur)
+	dictionnaire_fichiers[ID] = len(liste_vecteurs) - 1
+
+Tu peux ensuite sauvegarder dictionnaire_mots, dictionnaire_fichiers et liste_vecteurs (via le module pickle par exemple)
+Par la suite, tu n’as qu’a recharger dictionnaire_fichiers et liste_vecteurs (dictionnaire_mots n’est utile que si tu as besoin de travailler sur le mot lui-même)
+puis ta fonction __data_generation ressemblerait à 
+
+def __data_generation(self, list_IDs_temp):
+        y = []
+        v_q_words = []
+        v_d_words = []
+
+        for i, ID in enumerate(list_IDs_temp):
+            # Store sample
+            q_words = liste_vecteur[dictionnaire_fichiers[self.relations[ID][0]]]
+            v_q_words.append(q_words)
+            d_words = liste_vecteur[dictionnaire_fichiers[self.relations[ID][1]]]
+
+            v_d_words.append(d_words)
+            # Store class
+            y.append(self.labels[ID])
+
+        X = [np.array(v_q_words), np.array(v_d_words)]
+
+        return X, np.array(y)
+
+3. Parallellisme 
+Enfin, si ta machine dispose de plusieurs coeurs CPU (et je suppose que c’est le cas), tu peux accélerer le traitement de __data_generation avec l’api joblib
+Voici un exemple qui s’appuie sur le code que tu as actuellement de __data_generation
+
+def process_one_id(id, query, document):
+	# les deux lecture pour 
+	q_words = self.reader.get_query(query)
+	d_words = self.reader.get_document(document)
+	return (id, q_words, d_words)
+
+# […]
+
+def __data_generation(self, list_IDs_temp):
+	query_doc_generator = ((ID, self.relations[ID][0], self.relations[ID][1]) for ID in list_IDs_temp)
+	# Traitement long effectué en parallèle sur NB_CPU
+	all_results = Parallel(n_jobs = NB_CPU, backend=‘multiprocessing’)(delayed(process_one_id)(*params) for params in query_doc_generator)
+	# « Decoupage » des resultats
+	y=[]
+	v_q_words = []
+	v_d_words = []
+	for id, q_words, d_words in all_results:
+		v_q_words.append(q_words)
+		v_d_words.append(d_words)
+		y.append(self.labels[id])
+	X = [np.array(v_q_words), np.array(v_d_words)]
+	return X, np.array(y)
+
+
+Bien sur tu peux aussi combiner les différentes solutions entre elles
+
+J’espère que ces quelques propositions pourront t’aider.
+
+Bonne journée,
+
+
+Rémi Venant

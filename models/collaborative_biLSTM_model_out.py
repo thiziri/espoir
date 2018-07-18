@@ -1,7 +1,6 @@
 import sys
 import json
 import pyndri
-import numpy as np
 from keras.layers.merge import concatenate
 from keras.models import Model
 from keras.utils import plot_model
@@ -11,7 +10,7 @@ from keras.layers import Dense, Input, LSTM, Dropout, Bidirectional, Embedding, 
 from keras.layers.normalization import BatchNormalization
 from os.path import join
 from keras import callbacks
-from content_reader import ContentReader
+from content_reader import ContentReader, ContentPickleReader
 from data_generator import DataGenerator
 
 
@@ -101,9 +100,13 @@ if __name__ == '__main__':
 
     relations_list = list(relations)
     queries_list = list(train_queries.keys())
-    """relations_list, token2id, externalDocId, queries_list, q_max_len, d_max_len, queries,
-                           index=index"""
+    """
     reader = ContentReader(relations_list, token2id, externalDocId, queries_list, config_data['query_maxlen'],
+                           config_data['doc_maxlen'], train_queries,
+                           input_files=config_data['input_files'],
+                           index=index)
+    """
+    reader = ContentPickleReader(relations_list, token2id, externalDocId, queries_list, config_data['query_maxlen'],
                            config_data['doc_maxlen'], train_queries,
                            input_files=config_data['input_files'],
                            index=index)
@@ -113,12 +116,6 @@ if __name__ == '__main__':
                  for relation in relations if relation in relation_labeler[labeler]}
     labels = {idx: rel_label[relation] for idx, relation in enumerate(relations_list)}
 
-    print("x_train preparation...")
-    # the model needs list of 3 input arrays :
-    v_q_words = []
-    v_d_words = []
-    v_rel_labels = []
-
     # print(train_queries)
     print(list(relations)[0])
     params = {'relations_list': relations_list,
@@ -126,44 +123,9 @@ if __name__ == '__main__':
               'shuffle': config_model_train["shuffle"]}
 
     # Generators
-    training_generator = DataGenerator(reader, list_IDs, labels, **params)
-
-    """
-
-    for relation in tqdm(relations):
-        # get q_word_ids from index
-        q_words = [token2id[qi] if qi in token2id else 0 for qi in train_queries[relation[0]].strip().split()]
-        # print(len(q_words), len([x for x in q_words if x > 0]))
-        # ############## pad/truncate q_words to a query_maxlen
-        if len(q_words) < config_data['query_maxlen']:
-            q_words = list(np.pad(q_words, (config_data['query_maxlen']-len(q_words), 0), "constant", constant_values=0))
-        elif len(q_words) > config_data['query_maxlen']:
-            q_words = q_words[:config_data['query_maxlen']]
-
-        d_words = list(index.document(externalDocId[relation[1]])[1])  # get d_word_ids from index
-        # ############## pad/truncate d_words to a doc_maxlen
-        # print(len(d_words))
-        if len(d_words) < config_data['doc_maxlen']:
-            d_words = list(np.pad(d_words, (config_data['doc_maxlen']-len(d_words), 0), "constant", constant_values=0))
-        elif len(d_words) > config_data['doc_maxlen']:
-            d_words = d_words[:config_data['doc_maxlen']]
-        # print(len(d_words))
-
-        rel_labels = [int(relation_labeler[labeler][relation]) for labeler in relation_labeler
-                      if relation in relation_labeler[labeler]]
-        # [int(relation_labeler[labeler][relation]) if relation in relation_labeler[labeler] else -1 for labeler in relation_labeler]
-
-        v_q_words.append(q_words)
-        v_d_words.append(d_words)
-        v_rel_labels.append(rel_labels)
-
-    print("y_train preparation...")
-    if config_model_param["predict_labels"]:
-        y_train = get_mask(v_rel_labels, config_data)
-    else:
-        max_rel = max([max(l) for l in v_rel_labels])
-        y_train = [np.average([r/max_rel for r in l]) for l in v_rel_labels]
-    """
+    data_list, index_dict = reader.pickle_data()
+    # training_generator = DataGenerator(reader, list_IDs, labels, **params)
+    training_generator = DataGenerator(data_list, index_dict, list_IDs, labels, **params)
 
     steps_per_epoch = int(len(relations)/config_model_train["batch_size"])+1
 
@@ -172,20 +134,9 @@ if __name__ == '__main__':
     del relation_labeler
 
     print("Model training...")
-    print(np.array(v_q_words).shape, np.array(v_d_words).shape, np.array(v_rel_labels).shape)
-    x_train = [np.array(v_q_words), np.array(v_d_words)]
-    # print(np.array(x_train).shape)
-
     mc = callbacks.ModelCheckpoint(config_model_train["weights"]+'_iter_{epoch:04d}.h5', save_weights_only=True,
                                    period=config_model_train["save_period"])
 
-    """
-    history = model.fit(x=x_train, y=np.array(y_train),
-              batch_size=config_model_train["batch_size"],
-              epochs=config_model_train["epochs"],
-              verbose=config_model_train["verbose"],
-              shuffle=config_model_train["shuffle"], callbacks=[mc])
-    """
     history = model.fit_generator(generator=training_generator,
                                   epochs=config_model_train["epochs"],
                                   verbose=config_model_train["verbose"],
