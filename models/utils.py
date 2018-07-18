@@ -29,9 +29,10 @@ return: dict
 """
 def read_embedding(filename):
     embed = {}
-    for line in open(filename):
-        line = line.strip().split()
-        embed[int(line[0])] = list(map(float, line[1:]))
+    with open(filename) as embed_file:
+        for line in tqdm(embed_file):
+            line = line.strip().split()
+            embed[int(line[0])] = list(map(float, line[1:]))
     print('[%s]\n\tEmbedding size: %d' % (filename, len(embed)), end='\n')
     return embed
 
@@ -49,7 +50,7 @@ def convert_embed_2_numpy(embed_dict, max_size=0, embed=None):
         raise Exception("vocab_size %d is larger than embed_size %d, change the vocab_size in the config!"
                         % (len(embed_dict), len(embed)))
 
-    for k in embed_dict:
+    for k in tqdm(embed_dict):
         embed[k] = np.array(embed_dict[k])
     print('Generate numpy embed:', str(embed.shape), end='\n')
     return embed

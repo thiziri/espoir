@@ -10,8 +10,9 @@ from utils import get_input_label_size, get_mask, plot_history, get_optimizer
 from keras.layers import Dense, Input, LSTM, Dropout, Bidirectional, Embedding, Dot
 from keras.layers.normalization import BatchNormalization
 from os.path import join
-from tqdm import tqdm
 from keras import callbacks
+from content_reader import ContentReader
+from data_generator import DataGenerator
 
 
 if __name__ == '__main__':
@@ -35,7 +36,8 @@ if __name__ == '__main__':
     doc = Input(name="in_doc", shape=(config_data['doc_maxlen'], ), dtype='int32')
 
     embedding = Embedding(config_data['vocab_size'], config_data['embed_size'], weights=[embed_tensor],
-                          trainable=config_model_train['train_embed'], name="embeddings")  # load and/or train embeddings
+                          trainable=config_model_train['train_embed'], name="embeddings")
+    del embed_tensor
     q_embed = embedding(query)
     d_embed = embedding(doc)
     print("Embedded inputs: \nq_embed: {qe}\nd_embed: {de}".format(qe=q_embed, de=d_embed))
@@ -47,7 +49,7 @@ if __name__ == '__main__':
     print("biLstm vectors\nq_vector: {qv}\nd_vector: {dv}".format(qv=q_vector, dv=d_vector))
 
     input_vector = concatenate([q_vector, d_vector])
-    # merge_layer = Dot(axes=1,normalize=True)([q_vector, d_vector]) ######## similarity dotprod between the 2 vectors
+    # merge_layer = Dot(axes=1,normalize=False)([q_vector, d_vector]) ######## similarity dotprod between the 2 vectors
     # c = concatenate([q_vector, merge_layer, d_vector], axis=1)
     print("Concatenated vector: {iv}".format(iv=input_vector))
     merged = BatchNormalization()(input_vector)
@@ -97,6 +99,20 @@ if __name__ == '__main__':
         externalDocId[extD_id] = doc_id
     train_queries = get_queries(config_data["train_queries"])
 
+    relations_list = list(relations)
+    queries_list = list(train_queries.keys())
+    """relations_list, token2id, externalDocId, queries_list, q_max_len, d_max_len, queries,
+                           index=index"""
+    reader = ContentReader(relations_list, token2id, externalDocId, queries_list, config_data['query_maxlen'],
+                           config_data['doc_maxlen'], train_queries,
+                           input_files=config_data['input_files'],
+                           index=index)
+    list_IDs = [i for i, _ in enumerate(relations_list)]
+
+    rel_label = {relation: int(relation_labeler[labeler][relation]) for labeler in relation_labeler
+                 for relation in relations if relation in relation_labeler[labeler]}
+    labels = {idx: rel_label[relation] for idx, relation in enumerate(relations_list)}
+
     print("x_train preparation...")
     # the model needs list of 3 input arrays :
     v_q_words = []
@@ -105,11 +121,19 @@ if __name__ == '__main__':
 
     # print(train_queries)
     print(list(relations)[0])
+    params = {'relations_list': relations_list,
+              'batch_size': config_model_train["batch_size"],
+              'shuffle': config_model_train["shuffle"]}
+
+    # Generators
+    training_generator = DataGenerator(reader, list_IDs, labels, **params)
+
+    """
 
     for relation in tqdm(relations):
         # get q_word_ids from index
         q_words = [token2id[qi] if qi in token2id else 0 for qi in train_queries[relation[0]].strip().split()]
-        #print(len(q_words), len([x for x in q_words if x > 0]))
+        # print(len(q_words), len([x for x in q_words if x > 0]))
         # ############## pad/truncate q_words to a query_maxlen
         if len(q_words) < config_data['query_maxlen']:
             q_words = list(np.pad(q_words, (config_data['query_maxlen']-len(q_words), 0), "constant", constant_values=0))
@@ -125,8 +149,9 @@ if __name__ == '__main__':
             d_words = d_words[:config_data['doc_maxlen']]
         # print(len(d_words))
 
-        rel_labels = [int(relation_labeler[labeler][relation]) if relation in relation_labeler[labeler] else -1
-                      for labeler in relation_labeler]
+        rel_labels = [int(relation_labeler[labeler][relation]) for labeler in relation_labeler
+                      if relation in relation_labeler[labeler]]
+        # [int(relation_labeler[labeler][relation]) if relation in relation_labeler[labeler] else -1 for labeler in relation_labeler]
 
         v_q_words.append(q_words)
         v_d_words.append(d_words)
@@ -138,6 +163,13 @@ if __name__ == '__main__':
     else:
         max_rel = max([max(l) for l in v_rel_labels])
         y_train = [np.average([r/max_rel for r in l]) for l in v_rel_labels]
+    """
+
+    steps_per_epoch = int(len(relations)/config_model_train["batch_size"])+1
+
+    del relations
+    del index
+    del relation_labeler
 
     print("Model training...")
     print(np.array(v_q_words).shape, np.array(v_d_words).shape, np.array(v_rel_labels).shape)
@@ -147,11 +179,18 @@ if __name__ == '__main__':
     mc = callbacks.ModelCheckpoint(config_model_train["weights"]+'_iter_{epoch:04d}.h5', save_weights_only=True,
                                    period=config_model_train["save_period"])
 
+    """
     history = model.fit(x=x_train, y=np.array(y_train),
               batch_size=config_model_train["batch_size"],
               epochs=config_model_train["epochs"],
               verbose=config_model_train["verbose"],
               shuffle=config_model_train["shuffle"], callbacks=[mc])
+    """
+    history = model.fit_generator(generator=training_generator,
+                                  epochs=config_model_train["epochs"],
+                                  verbose=config_model_train["verbose"],
+                                  steps_per_epoch=steps_per_epoch,
+                                  callbacks=[mc])
 
     # save trained model
     print("Saving model and its weights ...")
